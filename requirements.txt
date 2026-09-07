@@ -1,0 +1,33 @@
+# ─── Web framework (Member 2 — Backend) ──────────────────────
+Django>=4.2,<5.0
+djangorestframework>=3.14
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.0
+
+# ─── Database (Member 3 — Data) ───────────────────────────────
+psycopg2-binary>=2.9          # PostgreSQL driver
+SQLAlchemy>=2.0               # ORM for data pipeline
+
+# ─── Data extraction (Member 3) ───────────────────────────────
+pandas>=2.0                   # CSV/XLSX manipulation
+openpyxl>=3.1                 # XLSX read/write
+lxml>=4.9                     # XML parsing (fast)
+pdfplumber>=0.9               # PDF text + table extraction
+chardet>=5.0                  # encoding detection
+
+# ─── Text normalization (Member 3) ───────────────────────────
+Unidecode>=1.3
+
+# ─── Async task queue (Member 4 — Platform) ──────────────────
+celery>=5.3
+redis>=5.0
+
+# ─── Utilities ────────────────────────────────────────────────
+python-dotenv>=1.0
+requests>=2.31
+
+# ─── Testing ─────────────────────────────────────────────────
+pytest>=7.4
+pytest-django>=4.7
+faker>=19.0
+factory-boy>=3.3

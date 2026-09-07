@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customers>
+  <customer>
+    <id>1</id>
+    <first_name>Grace</first_name>
+    <last_name>Jackson</last_name>
+    <email>grace.jackson91@yahoo.com</email>
+    <phone>+1-815-964-9895</phone>
+    <address>5443 Elm St</address>
+    <city>Philadelphia</city>
+    <state>PA</state>
+    <postal_code>80417</postal_code>
+    <country>US</country>
+    <created_date>2021-01-06</created_date>
+  </customer>
+  <customer>
+    <id>2</id>
+    <first_name>Mia</first_name>
+    <last_name>Johnson</last_name>
+    <email>miajohnson29@example.com</email>
+    <phone>+1-335-608-9532</phone>
+    <address>5427 Main St</address>
+    <city>Phoenix</city>
+    <state>AZ</state>
+    <postal_code>88586</postal_code>
+    <country>US</country>
+    <created_date>2024-01-12</created_date>
+  </customer>
+  <customer>
+    <id>3</id>
+    <first_name>Leo</first_name>
+    <last_name>Johnson</last_name>
+    <email>leojohnson64@outlook.com</email>
+    <phone>+1-875-237-3856</phone>
+    <address>1296 Main St</address>
+    <city>San Antonio</city>
+    <state>TX</state>
+    <postal_code>81069</postal_code>
+    <country>US</country>
+    <created_date>2022-09-10</created_date>
+  </customer>
+  <customer>
+    <id>4</id>
+    <first_name>Henry</first_name>
+    <last_name>Garcia</last_name>
+    <email>henrygarcia73@yahoo.com</email>
+    <phone>+1-908-287-2817</phone>
+    <address>1120 Main St</address>
+    <city>Chicago</city>
+    <state>IL</state>
+    <postal_code>60691</postal_code>
+    <country>US</country>
+    <created_date>2022-01-05</created_date>
+  </customer>
+  <customer>
+    <id>5</id>
+    <first_name>Frank</first_name>
+    <last_name>Miller</last_name>
+    <email>frank.miller96@gmail.com</email>
+    <phone>+1-639-214-6990</phone>
+    <address>7921 Oak St</address>
+    <city>Chicago</city>
+    <state>IL</state>
+    <postal_code>98924</postal_code>
+    <country>US</country>
+    <created_date>2020-07-20</created_date>
+  </customer>
+  <customer>
+    <id>6</id>
+    <first_name>Henry</first_name>
+    <last_name>Miller</last_name>
+    <email>henry_miller70@hotmail.com</email>
+    <phone>+1-813-628-7505</phone>
+    <address>2463 Elm St</address>
+    <city>San Diego</city>
+    <state>CA</state>
+    <postal_code>97923</postal_code>
+    <country>US</country>
+    <created_date>2022-09-07</created_date>
+  </customer>
+  <customer>
+    <id>7</id>
+    <first_name>Rachel</first_name>
+    <last_name>Wilson</last_name>
+    <email>rachel_wilson9@example.com</email>
+    <phone>+1-384-646-8385</phone>
+    <address>7546 Elm St</address>
+    <city>Phoenix</city>
+    <state>AZ</state>
+    <postal_code>47085</postal_code>
+    <country>US</country>
+    <created_date>2023-02-13</created_date>
+  </customer>
+  <customer>
+    <id>8</id>
+    <first_name>Rachel</first_name>
+    <last_name>Johnson</last_name>
+    <email>rachel.johnson26@outlook.com</email>
+    <phone>+1-695-151-5505</phone>
+    <address>8933 Elm St</address>
+    <city>Phoenix</city>
+    <state>AZ</state>
+    <postal_code>15244</postal_code>
+    <country>US</country>
+    <created_date>2020-08-27</created_date>
+  </customer>
+  <customer>
+    <id>9</id>
+    <first_name>Quinn</first_name>
+    <last_name>Thomas</last_name>
+    <email>quinn.thomas38@yahoo.com</email>
+    <phone>+1-715-753-5287</phone>
+    <address>9671 Oak St</address>
+    <city>Chicago</city>
+    <state>IL</state>
+    <postal_code>75222</postal_code>
+    <country>US</country>
+    <created_date>2022-09-15</created_date>
+  </customer>
+  <customer>
+    <id>10</id>
+    <first_name>Noah</first_name>
+    <last_name>Johnson</last_name>
+    <email>noah_johnson84@outlook.com</email>
+    <phone>+1-219-579-2884</phone>
+    <address>1849 Oak St</address>
+    <city>Chicago</city>
+    <state>IL</state>
+    <postal_code>32964</postal_code>
+    <country>US</country>
+    <created_date>2021-11-11</created_date>
+  </customer>
+  <customer>
+    <id>11</id>
+    <first_name>Mia</first_name>
+    <last_name>Thomas</last_name>
+    <email>miathomas60@gmail.com</email>
+    <phone>+1-366-461-4504</phone>
+    <address>5273 Main St</address>
+    <city>Austin</city>
+    <state>TX</state>
+    <postal_code>54793</postal_code>
+    <country>US</country>
+    <created_date>2022-10-10</created_date>
+  </customer>
+  <customer>
+    <id>12</id>
+    <first_name>Quinn</first_name>
+    <last_name>Miller</last_name>
+    <email>quinnmiller59@hotmail.com</email>
+    <phone>+1-371-800-8921</phone>
+    <address>751 Main St</address>
+    <city>Los Angeles</city>
+    <state>CA</state>
+    <postal_code>61656</postal_code>
+    <country>US</country>
+    <created_date>2020-05-22</created_date>
+  </customer>
+  <customer>
+    <id>13</id>
+    <first_name>Jack</first_name>
+    <last_name>Brown</last_name>
+    <email>jack.brown96@gmail.com</email>
+    <phone>+1-423-118-1372</phone>
+    <address>880 Main St</address>
+    <city>Chicago</city>
+    <state>IL</state>
+    <postal_code>91621</postal_code>
+    <country>US</country>
+    <created_date>2021-11-10</created_date>
+  </customer>
+  <customer>
+    <id>14</id>
+    <first_name>Iris</first_name>
+    <last_name>Williams</last_name>
+    <email>iriswilliams62@gmail.com</email>
+    <phone>+1-226-816-4147</phone>
+    <address>3260 Elm St</address>
+    <city>Chicago</city>
+    <state>IL</state>
+    <postal_code>85835</postal_code>
+    <country>US</country>
+    <created_date>2022-11-04</created_date>
+  </customer>
+  <customer>
+    <id>15</id>
+    <first_name>Karen</first_name>
+    <last_name>White</last_name>
+    <email>karen.white42@outlook.com</email>
+    <phone>+1-885-293-4575</phone>
+    <address>4858 Main St</address>
+    <city>Dallas</city>
+    <state>TX</state>
+    <postal_code>14236</postal_code>
+    <country>US</country>
+    <created_date>2023-09-30</created_date>
+  </customer>
+  <customer>
+    <id>16</id>
+    <first_name>Jack</first_name>
+    <last_name>Jones</last_name>
+    <email>jack_jones74@example.com</email>
+    <phone>+1-385-684-8418</phone>
+    <address>784 Elm St</address>
+    <city>Dallas</city>
+    <state>TX</state>
+    <postal_code>14689</postal_code>
+    <country>US</country>
+    <created_date>2021-11-20</created_date>
+  </customer>
+  <customer>
+    <id>17</id>
+    <first_name>Alice</first_name>
+    <last_name>Anderson</last_name>
+    <email>aliceanderson53@gmail.com</email>
+    <phone>+1-324-156-5784</phone>
+    <address>4416 Main St</address>
+    <city>Los Angeles</city>
+    <state>CA</state>
+    <postal_code>68483</postal_code>
+    <country>US</country>
+    <created_date>2022-10-13</created_date>
+  </customer>
+  <customer>
+    <id>18</id>
+    <first_name>Iris</first_name>
+    <last_name>Harris</last_name>
+    <email>iris.harris14@yahoo.com</email>
+    <phone>+1-409-185-1361</phone>
+    <address>2407 Oak St</address>
+    <city>San Diego</city>
+    <state>CA</state>
+    <postal_code>97553</postal_code>
+    <country>US</country>
+    <created_date>2021-03-28</created_date>
+  </customer>
+  <customer>
+    <id>19</id>
+    <first_name>Henry</first_name>
+    <last_name>Taylor</last_name>
+    <email>henry.taylor81@outlook.com</email>
+    <phone>+1-681-293-4475</phone>
+    <address>5935 Pine St</address>
+    <city>Philadelphia</city>
+    <state>PA</state>
+    <postal_code>81525</postal_code>
+    <country>US</country>
+    <created_date>2021-01-25</created_date>
+  </customer>
+  <customer>
+    <id>20</id>
+    <first_name>Rachel</first_name>
+    <last_name>Brown</last_name>
+    <email>rachelbrown58@example.com</email>
+    <phone>+1-736-753-2263</phone>
+    <address>4817 Pine St</address>
+    <city>Phoenix</city>
+    <state>AZ</state>
+    <postal_code>65887</postal_code>
+    <country>US</country>
+    <created_date>2020-12-19</created_date>
+  </customer>
+</customers>

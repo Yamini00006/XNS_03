@@ -1,0 +1,21 @@
+[
+  {
+    "first_name": "Tom",
+    "last_name": "Hardy",
+    "email": 12345,
+    "phone": "+1-555-1111",
+    "city": "LA"
+  },
+  {
+    "first_name": "Lucy",
+    "last_name": null,
+    "email": "lucy@x.com",
+    "phone": null,
+    "city": "NY"
+  },
+  {
+    "first_name": "Zara",
+    "email": "zara@x.com",
+    "phone": "+1-555-2222"
+  }
+]
