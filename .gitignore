@@ -45,3 +45,4 @@ desktop.ini
 datasets/processed/
 # Keep datasets/input/ and datasets/invalid/ in version control
 # (they are seed/test data, not secrets)
+datasets/input/*
