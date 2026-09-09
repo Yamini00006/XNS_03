@@ -3,14 +3,16 @@ backend/apps/files/views.py
 
 File upload + metadata endpoints.
 
-    POST   /api/files/upload/   — upload a CSV/JSON/NDJSON/XLSX/XML/PDF file
-    GET    /api/files/          — list uploaded files (paginated)
-    GET    /api/files/{id}/     — file metadata
-    DELETE /api/files/{id}/     — delete a file record (+ its stored copy)
+Single file:
+    POST   /api/files/upload/
 
-This app never runs extraction/parsing itself — it only stores the file
-and a metadata row. Processing is started explicitly via
-POST /api/processing/{file_id}/start/ (see apps/processing).
+Multiple files:
+    POST   /api/files/upload-batch/
+
+Metadata:
+    GET    /api/files/
+    GET    /api/files/{id}/
+    DELETE /api/files/{id}/
 """
 
 from __future__ import annotations
@@ -41,117 +43,286 @@ from .validators import (
     validate_size,
 )
 
-_ALLOWED_SORT_FIELDS = {"uploaded_at", "original_name", "file_size_bytes", "file_format"}
+
+_ALLOWED_SORT_FIELDS = {
+    "uploaded_at",
+    "original_name",
+    "file_size_bytes",
+    "file_format",
+}
+
+MAX_BATCH_FILES = 20
+
+
+def _save_uploaded_file(upload, request_user_id: int) -> dict:
+    """
+    Validate and store one uploaded file.
+
+    Returns:
+        {
+            "record": UploadFile,
+            "data": serialized record,
+            "path": stored Path
+        }
+    """
+
+    original_name = safe_original_name(upload.name)
+
+    db_format = validate_extension(original_name)
+    validate_size(upload.size)
+
+    dest_path = build_storage_path(original_name)
+
+    md5 = hashlib.md5()
+
+    with open(dest_path, "wb") as out:
+        for chunk in upload.chunks():
+            md5.update(chunk)
+            out.write(chunk)
+
+    try:
+        with session_scope() as session:
+            record = UploadFile(
+                original_name=original_name,
+                stored_path=str(dest_path),
+                file_format=FileFormat(db_format),
+                file_size_bytes=upload.size,
+                uploaded_by=request_user_id,
+                uploaded_at=datetime.utcnow(),
+                checksum_md5=md5.hexdigest(),
+            )
+
+            session.add(record)
+            session.flush()
+
+            data = to_dict(record)
+
+    except Exception:
+        if dest_path.exists():
+            os.remove(dest_path)
+
+        raise
+
+    return {
+        "record": record,
+        "data": data,
+        "path": dest_path,
+    }
 
 
 class FileUploadView(APIView):
-    """POST /api/files/upload/ — multipart/form-data, field name 'file'."""
+    """
+    POST /api/files/upload/
+
+    Existing single-file upload endpoint.
+    """
+
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
         upload = request.FILES.get("file")
+
         if upload is None:
-            raise ValidationAPIError("No file provided. Use multipart field name 'file'.")
+            raise ValidationAPIError(
+                "No file provided. Use multipart field name 'file'."
+            )
 
-        original_name = safe_original_name(upload.name)
-        db_format = validate_extension(original_name)   # raises UnsupportedFileTypeError
-        validate_size(upload.size)
+        result = _save_uploaded_file(
+            upload,
+            request.user.id,
+        )
 
-        dest_path = build_storage_path(original_name)
-        md5 = hashlib.md5()
+        return Response(
+            result["data"],
+            status=status.HTTP_201_CREATED,
+        )
 
-        with open(dest_path, "wb") as out:
-            for chunk in upload.chunks():
-                md5.update(chunk)
-                out.write(chunk)
+
+class FileBatchUploadView(APIView):
+    """
+    POST /api/files/upload-batch/
+
+    Multipart field:
+        files
+
+    Example:
+        files=customers.csv
+        files=customers.json
+        files=customers.xlsx
+
+    All files are uploaded as one customer-data batch.
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        uploads = request.FILES.getlist("files")
+
+        if not uploads:
+            raise ValidationAPIError(
+                "No files provided. Use multipart field name 'files'."
+            )
+
+        if len(uploads) > MAX_BATCH_FILES:
+            raise ValidationAPIError(
+                f"You can upload at most {MAX_BATCH_FILES} files in one batch."
+            )
+
+        uploaded_records = []
+        stored_paths = []
 
         try:
-            with session_scope() as session:
-                record = UploadFile(
-                    original_name=original_name,
-                    stored_path=str(dest_path),
-                    file_format=FileFormat(db_format),
-                    file_size_bytes=upload.size,
-                    uploaded_by=request.user.id,
-                    uploaded_at=datetime.utcnow(),
-                    checksum_md5=md5.hexdigest(),
+            for upload in uploads:
+                result = _save_uploaded_file(
+                    upload,
+                    request.user.id,
                 )
-                session.add(record)
-                session.flush()
-                data = to_dict(record)
+
+                uploaded_records.append(result["data"])
+                stored_paths.append(result["path"])
+
         except Exception:
-            # Roll back the file we already wrote to disk if the DB insert failed.
-            if dest_path.exists():
-                os.remove(dest_path)
+            # Clean up files already written if a later file fails.
+            for path in stored_paths:
+                try:
+                    if path.exists():
+                        os.remove(path)
+                except OSError:
+                    pass
+
             raise
 
-        return Response(data, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "message": f"{len(uploaded_records)} files uploaded successfully.",
+                "count": len(uploaded_records),
+                "files": uploaded_records,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class FileListView(APIView):
-    """GET /api/files/ — paginated list, newest first. Optional ?format=csv&mine=true"""
+    """
+    GET /api/files/
+
+    Paginated list of uploaded files.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         page, page_size = parse_page(request)
+
         fmt_filter = request.query_params.get("format")
-        mine_only = request.query_params.get("mine", "").lower() in ("1", "true", "yes")
+
+        mine_only = (
+            request.query_params.get("mine", "").lower()
+            in ("1", "true", "yes")
+        )
 
         with session_scope() as session:
             query = session.query(UploadFile)
+
             if fmt_filter:
                 try:
-                    query = query.filter(UploadFile.file_format == FileFormat(fmt_filter))
+                    query = query.filter(
+                        UploadFile.file_format == FileFormat(fmt_filter)
+                    )
                 except ValueError:
-                    raise ValidationAPIError(f"Invalid 'format' filter: {fmt_filter!r}.")
+                    raise ValidationAPIError(
+                        f"Invalid 'format' filter: {fmt_filter!r}."
+                    )
+
             if mine_only:
-                query = query.filter(UploadFile.uploaded_by == request.user.id)
+                query = query.filter(
+                    UploadFile.uploaded_by == request.user.id
+                )
 
             total = query.count()
+
             rows = (
-                query.order_by(UploadFile.uploaded_at.desc())
+                query.order_by(
+                    UploadFile.uploaded_at.desc()
+                )
                 .offset((page - 1) * page_size)
                 .limit(page_size)
                 .all()
             )
-            results = [to_dict(r) for r in rows]
 
-        meta = paginate_list(range(total), page, page_size)
+            results = [to_dict(row) for row in rows]
+
+        meta = paginate_list(
+            range(total),
+            page,
+            page_size,
+        )
+
         meta["results"] = results
+
         return Response(meta)
 
 
 class FileDetailView(APIView):
-    """GET/DELETE /api/files/{id}/"""
+    """
+    GET/DELETE /api/files/{id}/
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request, file_id: int):
         with session_scope() as session:
-            record = session.get(UploadFile, file_id)
+            record = session.get(
+                UploadFile,
+                file_id,
+            )
+
             if record is None:
-                raise NotFoundError(f"File {file_id} not found.")
+                raise NotFoundError(
+                    f"File {file_id} not found."
+                )
+
             data = to_dict(record)
+
         return Response(data)
 
     def delete(self, request, file_id: int):
         permission = IsOwnerOrStaff()
-        with session_scope() as session:
-            record = session.get(UploadFile, file_id)
-            if record is None:
-                raise NotFoundError(f"File {file_id} not found.")
 
-            if not permission.has_object_permission(request, self, record.uploaded_by):
+        with session_scope() as session:
+            record = session.get(
+                UploadFile,
+                file_id,
+            )
+
+            if record is None:
+                raise NotFoundError(
+                    f"File {file_id} not found."
+                )
+
+            if not permission.has_object_permission(
+                request,
+                self,
+                record.uploaded_by,
+            ):
                 from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied(permission.message)
+
+                raise PermissionDenied(
+                    permission.message
+                )
 
             stored_path = record.stored_path
+
             session.delete(record)
 
         if stored_path and os.path.exists(stored_path):
             try:
                 os.remove(stored_path)
             except OSError:
-                pass  # best-effort cleanup; DB record is already gone
+                pass
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
