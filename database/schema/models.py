@@ -65,6 +65,11 @@ class JobStatus(str, enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
 
+class BatchStatus(str, enum.Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 class ValidationSeverity(str, enum.Enum):
     ERROR = "error"
@@ -73,6 +78,50 @@ class ValidationSeverity(str, enum.Enum):
 
 # ─── Tables ──────────────────────────────────────────────────────────────────
 
+class ProcessingBatch(Base):
+    """
+    One isolated processing operation.
+
+    A batch groups the files and processing jobs belonging to one
+    user-initiated processing workflow.
+    """
+
+    __tablename__ = "processing_batches"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    name          = Column(String(255), nullable=False)
+    status        = Column(
+        SAEnum(
+            BatchStatus,
+            name="batch_status",
+            values_callable=enum_values,
+        ),
+        default=BatchStatus.QUEUED,
+        nullable=False,
+    )
+    created_at    = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at  = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    upload_files = relationship(
+        "UploadFile",
+        back_populates="batch",
+    )
+
+    processing_jobs = relationship(
+        "ProcessingJob",
+        back_populates="batch",
+    )
+
+    customers = relationship(
+        "Customer",
+        back_populates="batch",
+    )
+
+    __table_args__ = (
+        Index("ix_processing_batches_status", "status"),
+        Index("ix_processing_batches_created_at", "created_at"),
+    )
 class UploadFile(Base):
     """
     One row per file uploaded by a user.
@@ -83,6 +132,11 @@ class UploadFile(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     original_name = Column(String(255), nullable=False)
+    batch_id        = Column(
+    Integer,
+    ForeignKey("processing_batches.id"),
+    nullable=True,
+)
     stored_path = Column(String(512), nullable=False)
     file_format = Column(
         SAEnum(
@@ -98,10 +152,15 @@ class UploadFile(Base):
     checksum_md5 = Column(String(32), nullable=True)
 
     jobs = relationship("ProcessingJob", back_populates="upload_file")
+    batch = relationship(
+    "ProcessingBatch",
+    back_populates="upload_files",
+)
 
     __table_args__ = (
         Index("ix_upload_files_format", "file_format"),
         Index("ix_upload_files_uploaded_at", "uploaded_at"),
+        Index("ix_upload_files_batch_id", "batch_id"),
     )
 
 
@@ -125,6 +184,11 @@ class ProcessingJob(Base):
         ForeignKey("upload_files.id"),
         nullable=False,
     )
+    batch_id         = Column(
+    Integer,
+    ForeignKey("processing_batches.id"),
+    nullable=True,
+)
     status = Column(
         SAEnum(
             JobStatus,
@@ -161,10 +225,15 @@ class ProcessingJob(Base):
         "ProcessingLog",
         back_populates="job",
     )
+    batch            = relationship(
+    "ProcessingBatch",
+    back_populates="processing_jobs",
+)
 
     __table_args__ = (
         Index("ix_processing_jobs_status", "status"),
         Index("ix_processing_jobs_upload_file_id", "upload_file_id"),
+        Index("ix_processing_jobs_batch_id", "batch_id"),
     )
 
 
@@ -178,6 +247,11 @@ class Customer(Base):
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    batch_id         = Column(
+    Integer,
+    ForeignKey("processing_batches.id"),
+    nullable=True,
+)
 
     # Core identity fields
     email = Column(String(255), nullable=True, index=True)
@@ -221,11 +295,16 @@ class Customer(Base):
         "CustomerSource",
         back_populates="customer",
     )
+    batch            = relationship(
+    "ProcessingBatch",
+    back_populates="customers",
+)
 
     __table_args__ = (
         Index("ix_customers_email", "email"),
         Index("ix_customers_phone", "phone"),
         Index("ix_customers_full_name", "full_name"),
+        Index("ix_customers_batch_id", "batch_id"),
     )
 
 

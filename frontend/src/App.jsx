@@ -9,6 +9,7 @@ import Processing from "./pages/Processing/Processing";
 import DataExplorer from "./pages/DataExplorer/DataExplorer";
 import CustomerDetails from "./pages/CustomerDetails/CustomerDetails";
 import Chatbot from "./pages/Chatbot/Chatbot";
+import ProcessingHistory from "./pages/ProcessingHistory/ProcessingHistory";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/upload" element={<Upload />} />
         <Route path="/processing" element={<Processing />} />
         <Route path="/processing/:jobId" element={<Processing />} />
+        <Route path="/processing-history" element={<ProcessingHistory />} />
         <Route path="/data" element={<DataExplorer />} />
         <Route path="/data/:customerId" element={<CustomerDetails />} />
         <Route path="/chatbot" element={<Chatbot />} />

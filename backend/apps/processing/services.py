@@ -25,9 +25,11 @@ from common.db import session_scope, to_dict
 from common.exceptions import NotFoundError, ValidationAPIError
 
 from database.schema.models import (
+    BatchStatus,
     Customer,
     CustomerSource,
     JobStatus,
+    ProcessingBatch,
     ProcessingJob,
     UploadFile,
 )
@@ -54,6 +56,9 @@ def display_status(raw_status) -> str:
         value,
         value,
     )
+
+def display_batch_status(raw_status) -> str:
+    return display_status(raw_status)
 
 
 # ---------------------------------------------------------------------
@@ -183,11 +188,11 @@ def create_batch_jobs(
     user_id: int,
 ) -> dict:
     """
-    Create one ProcessingJob per uploaded file.
+    Create one isolated ProcessingBatch and one ProcessingJob per
+    uploaded file.
 
-    The jobs are processed sequentially inside one background worker.
-    After every file has completed successfully, customers from all
-    files are merged together.
+    A ProcessingBatch is the isolation boundary for one processing
+    operation.
     """
 
     if not file_ids:
@@ -199,6 +204,11 @@ def create_batch_jobs(
     unique_file_ids = list(
         dict.fromkeys(file_ids)
     )
+
+    if not user_id:
+        raise ValidationAPIError(
+            "Authenticated user is required."
+        )
 
     with session_scope() as session:
         files = (
@@ -225,29 +235,34 @@ def create_batch_jobs(
                 f"Files not found: {missing_ids}"
             )
 
-        # Security: user can only process their own files
-        # unless they are staff.
-        if not user_id:
-            raise ValidationAPIError(
-                "Authenticated user is required."
-            )
-
+        # Security: user can only process their own files.
         for file in files:
-            if (
-                file.uploaded_by != user_id
-            ):
+            if file.uploaded_by != user_id:
                 raise ValidationAPIError(
                     f"You do not have permission to process "
                     f"file {file.id}."
                 )
+
+        # Create the isolation boundary.
+        batch = ProcessingBatch(
+            name=f"Processing Batch {len(unique_file_ids)} files",
+            status=BatchStatus.QUEUED,
+        )
+
+        session.add(batch)
+        session.flush()
 
         jobs = []
 
         for file_id in unique_file_ids:
             file = files_by_id[file_id]
 
+            # Attach uploaded file to this processing batch.
+            file.batch_id = batch.id
+
             job = ProcessingJob(
                 upload_file_id=file.id,
+                batch_id=batch.id,
                 status=JobStatus.QUEUED,
             )
 
@@ -262,10 +277,12 @@ def create_batch_jobs(
                 }
             )
 
-    # Run entire batch in one background thread.
+        batch_id = batch.id
+
+    # Run the complete batch in one background thread.
     thread = threading.Thread(
         target=run_batch,
-        args=(jobs,),
+        args=(jobs, batch_id),
         daemon=True,
     )
 
@@ -276,6 +293,7 @@ def create_batch_jobs(
             f"Batch processing started for "
             f"{len(jobs)} files."
         ),
+        "batch_id": batch_id,
         "count": len(jobs),
         "jobs": [
             {
@@ -290,60 +308,160 @@ def create_batch_jobs(
 
 def run_batch(
     jobs: list[dict],
+    batch_id: int,
 ) -> None:
     """
-    Process every file in the batch.
+    Process every file in one isolated processing batch.
 
-    Files are processed sequentially to keep the implementation
-    reliable and to make the final cross-file merge deterministic.
+    Customers produced by these jobs are assigned to this batch before
+    cross-file merging. Customers from other processing batches are
+    never included.
     """
 
     successful_file_ids = []
 
-    for item in jobs:
-        try:
-            from data_processing.pipeline.run import process_file
-
-            process_file(
-                job_id=item["job_id"],
-                upload_file_id=item["file_id"],
-                file_path=item["file_path"],
+    try:
+        # Mark the batch as running.
+        with session_scope() as session:
+            batch = session.get(
+                ProcessingBatch,
+                batch_id,
             )
 
-            with session_scope() as session:
-                job = session.get(
-                    ProcessingJob,
+            if batch is None:
+                logger.error(
+                    "Processing batch %s not found.",
+                    batch_id,
+                )
+                return
+
+            batch.status = BatchStatus.RUNNING
+
+        # Process files sequentially.
+        for item in jobs:
+            try:
+                from data_processing.pipeline.run import process_file
+
+                process_file(
+                    job_id=item["job_id"],
+                    upload_file_id=item["file_id"],
+                    file_path=item["file_path"],
+                )
+
+                with session_scope() as session:
+                    job = session.get(
+                        ProcessingJob,
+                        item["job_id"],
+                    )
+
+                    if (
+                        job
+                        and job.status == JobStatus.COMPLETED
+                    ):
+                        # Find customers produced by this job.
+                        source_rows = (
+                            session.query(CustomerSource)
+                            .filter(
+                                CustomerSource.job_id
+                                == item["job_id"]
+                            )
+                            .all()
+                        )
+
+                        customer_ids = {
+                            source.customer_id
+                            for source in source_rows
+                            if source.customer_id is not None
+                        }
+
+                        # Assign those customers to this batch.
+                        if customer_ids:
+                            (
+                                session.query(Customer)
+                                .filter(
+                                    Customer.id.in_(customer_ids)
+                                )
+                                .update(
+                                    {
+                                        Customer.batch_id: batch_id
+                                    },
+                                    synchronize_session=False,
+                                )
+                            )
+
+                        successful_file_ids.append(
+                            item["file_id"]
+                        )
+
+            except Exception:
+                logger.exception(
+                    "Batch processing failed for job %s",
                     item["job_id"],
                 )
 
-                if (
-                    job
-                    and job.status == JobStatus.COMPLETED
-                ):
-                    successful_file_ids.append(
-                        item["file_id"]
-                    )
+        # Merge only customers belonging to this batch.
+        if successful_file_ids:
+            try:
+                merge_batch_customers(
+                    successful_file_ids,
+                    batch_id=batch_id,
+                )
+            except Exception:
+                logger.exception(
+                    "Cross-file customer merge failed "
+                    "for files %s",
+                    successful_file_ids,
+                )
 
-        except Exception:
-            logger.exception(
-                "Batch processing failed for job %s",
-                item["job_id"],
+        # Determine final batch status.
+        with session_scope() as session:
+            batch = session.get(
+                ProcessingBatch,
+                batch_id,
             )
 
-    # Only merge across files that completed successfully.
-    if successful_file_ids:
-        try:
-            merge_batch_customers(
-                successful_file_ids
-            )
-        except Exception:
-            logger.exception(
-                "Cross-file customer merge failed "
-                "for files %s",
-                successful_file_ids,
+            if batch is None:
+                return
+
+            jobs_in_batch = (
+                session.query(ProcessingJob)
+                .filter(
+                    ProcessingJob.batch_id == batch_id
+                )
+                .all()
             )
 
+            if any(
+                job.status == JobStatus.FAILED
+                for job in jobs_in_batch
+            ):
+                batch.status = BatchStatus.FAILED
+            else:
+                batch.status = BatchStatus.COMPLETED
 
+            from datetime import datetime
+
+            batch.completed_at = datetime.utcnow()
+
+    except Exception as exc:
+        logger.exception(
+            "Unexpected error running processing batch %s",
+            batch_id,
+        )
+
+        with session_scope() as session:
+            batch = session.get(
+                ProcessingBatch,
+                batch_id,
+            )
+
+            if batch is not None:
+                batch.status = BatchStatus.FAILED
+                batch.error_message = str(exc)
+
+                from datetime import datetime
+
+                batch.completed_at = datetime.utcnow()
 # ---------------------------------------------------------------------
 # CROSS-FILE CUSTOMER MERGING
 # ---------------------------------------------------------------------
@@ -492,6 +610,7 @@ def _merge_customer_values(
 
 def merge_batch_customers(
     upload_file_ids: Iterable[int],
+    batch_id: int | None = None,
 ) -> dict:
     """
     Merge customers that originated from the same
@@ -545,15 +664,17 @@ def merge_batch_customers(
                 "unique": 0,
             }
 
-        customers = (
+        customer_query = (
             session.query(Customer)
             .filter(
                 Customer.id.in_(customer_ids)
             )
-            .order_by(Customer.id.asc())
-            .all()
         )
-
+        if batch_id is not None:
+            customer_query = customer_query.filter(Customer.batch_id == batch_id)
+        customers = (
+            customer_query.order_by(Customer.id.asc()).all()
+        )
         # key -> primary customer
         seen = {}
 

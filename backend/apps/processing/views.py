@@ -12,7 +12,9 @@ from common.query_params import parse_page
 
 from database.schema.models import (
     JobStatus,
+    ProcessingBatch,
     ProcessingJob,
+    UploadFile,
     ValidationError,
 )
 
@@ -203,6 +205,166 @@ class ProcessingBatchStatusView(APIView):
         )
 
 
+class ProcessingBatchListView(APIView):
+    """
+    GET /api/processing/batches/
+
+    Returns processing history for the authenticated user.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        page, page_size = parse_page(request)
+
+        with session_scope() as session:
+            query = (
+                session.query(ProcessingBatch)
+                .join(
+                    UploadFile,
+                    UploadFile.batch_id == ProcessingBatch.id,
+                )
+                .filter(
+                    UploadFile.uploaded_by == request.user.id
+                )
+                .distinct()
+            )
+
+            total = query.count()
+
+            batches = (
+                query.order_by(
+                    ProcessingBatch.created_at.desc()
+                )
+                .offset(
+                    (page - 1) * page_size
+                )
+                .limit(page_size)
+                .all()
+            )
+
+            results = []
+
+            for batch in batches:
+                file_count = (
+                    session.query(UploadFile)
+                    .filter(
+                        UploadFile.batch_id == batch.id
+                    )
+                    .count()
+                )
+
+                job_count = (
+                    session.query(ProcessingJob)
+                    .filter(
+                        ProcessingJob.batch_id == batch.id
+                    )
+                    .count()
+                )
+
+                data = to_dict(batch)
+
+                data["status"] = services.display_batch_status(
+                    data["status"]
+                )
+
+                data["file_count"] = file_count
+                data["job_count"] = job_count
+
+                results.append(data)
+
+        meta = paginate_list(
+            range(total),
+            page,
+            page_size,
+        )
+
+        meta["results"] = results
+
+        return Response(meta)
+
+class ProcessingBatchDetailView(APIView):
+    """
+    GET /api/processing/batches/{batch_id}/
+
+    Returns one processing batch together with its files and jobs.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, batch_id: int):
+        with session_scope() as session:
+            batch = session.get(
+                ProcessingBatch,
+                batch_id,
+            )
+
+            if batch is None:
+                raise NotFoundError(
+                    f"Processing batch {batch_id} not found."
+                )
+
+            # Verify that this batch belongs to the current user.
+            user_file = (
+                session.query(UploadFile)
+                .filter(
+                    UploadFile.batch_id == batch_id,
+                    UploadFile.uploaded_by == request.user.id,
+                )
+                .first()
+            )
+
+            if user_file is None:
+                raise NotFoundError(
+                    f"Processing batch {batch_id} not found."
+                )
+
+            files = (
+                session.query(UploadFile)
+                .filter(
+                    UploadFile.batch_id == batch_id
+                )
+                .order_by(
+                    UploadFile.id.asc()
+                )
+                .all()
+            )
+
+            jobs = (
+                session.query(ProcessingJob)
+                .filter(
+                    ProcessingJob.batch_id == batch_id
+                )
+                .order_by(
+                    ProcessingJob.id.asc()
+                )
+                .all()
+            )
+
+            data = to_dict(batch)
+
+            data["status"] = services.display_batch_status(
+                data["status"]
+            )
+
+            data["files"] = [
+                to_dict(file)
+                for file in files
+            ]
+
+            data["jobs"] = []
+
+            for job in jobs:
+                job_data = to_dict(job)
+                job_data["status"] = services.display_status(
+                    job_data["status"]
+                )
+                data["jobs"].append(job_data)
+
+            data["file_count"] = len(files)
+            data["job_count"] = len(jobs)
+
+            return Response(data)
 class ProcessingDetailView(APIView):
     """
     GET /api/processing/{id}/

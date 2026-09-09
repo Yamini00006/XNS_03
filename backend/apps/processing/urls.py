@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    ProcessingBatchDetailView,
+    ProcessingBatchListView,
     ProcessingBatchStatusView,
     ProcessingDetailView,
     ProcessingErrorsView,
@@ -19,6 +21,16 @@ urlpatterns = [
         "batch/status/",
         ProcessingBatchStatusView.as_view(),
         name="processing-batch-status",
+    ),
+    path(
+        "batches/<int:batch_id>/",
+        ProcessingBatchDetailView.as_view(),
+        name="processing-batch-detail",
+    ),
+    path(
+        "batches/",
+        ProcessingBatchListView.as_view(),
+        name="processing-batch-list",
     ),
     path(
         "<int:file_id>/start/",

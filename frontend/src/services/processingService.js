@@ -3,9 +3,7 @@ import { api } from "./api";
 export const processingService = {
   start: (fileId) =>
     api
-      .post(
-        `/api/processing/${fileId}/start/`
-      )
+      .post(`/api/processing/${fileId}/start/`)
       .then((r) => r.data),
 
   startBatch: (fileIds) =>
@@ -30,6 +28,12 @@ export const processingService = {
       )
       .then((r) => r.data),
 
+  // Processing History
+  history: () =>
+    api
+      .get("/api/processing/batches/")
+      .then((r) => r.data),
+
   get: (jobId) =>
     api
       .get(`/api/processing/${jobId}/`)
@@ -47,12 +51,13 @@ export const processingService = {
           page,
           page_size: pageSize,
           ...(status
-            ? { status }
+            ? {
+                status,
+              }
             : {}),
           ...(uploadFileId
             ? {
-                upload_file_id:
-                  uploadFileId,
+                upload_file_id: uploadFileId,
               }
             : {}),
         },
