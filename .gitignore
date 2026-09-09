@@ -1,48 +1,44 @@
-# ─── Environment / secrets ────────────────────────────────────
-.env
-*.env.local
-
-# ─── Python ───────────────────────────────────────────────────
+# Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-.eggs/
-*.egg
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
-.ruff_cache/
+*$py.class
+*.so
 
-# ─── Virtual environments ─────────────────────────────────────
+# Virtual environments
 venv/
 .venv/
 env/
 ENV/
 
-# ─── Node (frontend) ──────────────────────────────────────────
+# Environment files
+.env
+
+# Django
+*.log
+db.sqlite3
+media/
+
+# Frontend
 node_modules/
 dist/
-.next/
+build/
 
-# ─── OS ───────────────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-desktop.ini
+# Vite
+.vite/
 
-# ─── IDE ──────────────────────────────────────────────────────
+# Test/cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# ─── Datasets (generated / processed outputs) ─────────────────
-datasets/processed/
-# Keep datasets/input/ and datasets/invalid/ in version control
-# (they are seed/test data, not secrets)
-datasets/input/
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime uploaded/generated files
+datasets/input/*
+datasets/processed/*

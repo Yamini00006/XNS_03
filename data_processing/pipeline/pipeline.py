@@ -74,6 +74,7 @@ class Pipeline:
         job_id:         int,
         upload_file_id: int,
         file_path:      str | Path,
+        requested_attributes: list[str] | None = None,
     ) -> PipelineResult:
         """
         Run the full pipeline for a single file.
@@ -93,7 +94,7 @@ class Pipeline:
         self.session.commit()
 
         try:
-            result = self._run_stages(file_path, loader, job_id, upload_file_id, started_at)
+            result = self._run_stages(file_path, loader, job_id, upload_file_id, started_at,requested_attributes)
             self.session.commit()
             return result
 
@@ -122,6 +123,7 @@ class Pipeline:
         job_id:         int,
         upload_file_id: int,
         started_at:     datetime,
+        requested_attributes: list[str] | None = None,
     ) -> PipelineResult:
 
         # ── 1. EXTRACT ────────────────────────────────────────
@@ -155,6 +157,32 @@ class Pipeline:
         # ── 2. DETECT SCHEMA ─────────────────────────────────
         loader._log("INFO", "extract", "Detecting schema...")
         schema_mapping = detect_schema(raw_rows)
+
+        if requested_attributes:
+            requested_set = set(requested_attributes)
+            filtered_rows = []
+            for row in raw_rows:
+                mapped_row = schema_mapping.apply(row)
+                filtered_row = {
+                    key: value
+                    for key,value in mapped_row.items()
+                    if(
+                        key in requested_set or key.startswith("_")
+                    )
+                }
+                filtered_rows.append(
+                    filtered_row
+                )
+            raw_rows = filtered_rows
+            loader._log(
+                "INFO",
+                "extract",
+                "Applied requested attributes:"
+                + ",".join(
+                    requested_attributes
+                ),
+            )
+
         loader._log(
             "INFO", "extract",
             f"Schema: {len(schema_mapping.column_map)} columns mapped, "

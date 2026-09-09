@@ -1,5 +1,6 @@
 // src/pages/DataExplorer/DataExplorer.jsx
-import { useState } from "react";
+import { useEffect,useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useFetch } from "../../hooks/useFetch";
 import { dataService } from "../../services/dataService";
 import Loading from "../../components/Loading/Loading";
@@ -11,13 +12,51 @@ import ExportButtons from "../../components/ExportButtons/ExportButtons";
 import { DEFAULT_PAGE_SIZE } from "../../utils/constants";
 
 export default function DataExplorer() {
+  const [searchParams] = useSearchParams();
+
+  const batchId = searchParams.get("batch_id");
+
   const [page, setPage] = useState(1);
-  const [query, setQuery] = useState({ search: "", sort: "-created_at", filters: {} });
+
+  const [query, setQuery] = useState({
+    search: "",
+    sort: "-created_at",
+    filters: {},
+  });
+
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  const { data, loading, error, refetch } = useFetch(
-    () => dataService.list({ page, pageSize: DEFAULT_PAGE_SIZE, ...query }),
-    [page, query]
+  // When the user switches processing batches,
+  // start the Data Explorer from page 1.
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds(new Set());
+  }, [batchId]);
+
+  const explorerQuery = useMemo(
+  () => ({
+    ...query,
+    filters: {
+      ...query.filters,
+      ...(batchId ? { batch_id: batchId } : {}),
+    },
+  }),
+  [query, batchId]
+);
+
+  const {
+    data,
+    loading,
+    error,
+    refetch,
+  } = useFetch(
+    () =>
+      dataService.list({
+        page,
+        pageSize: DEFAULT_PAGE_SIZE,
+        ...explorerQuery,
+      }),
+    [page, explorerQuery]
   );
 
   const handleFilterChange = (next) => {
@@ -29,8 +68,13 @@ export default function DataExplorer() {
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
       return next;
     });
   };
@@ -39,8 +83,13 @@ export default function DataExplorer() {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       const rows = data?.results || [];
-      if (checked) rows.forEach((r) => next.add(r.id));
-      else rows.forEach((r) => next.delete(r.id));
+
+      if (checked) {
+        rows.forEach((row) => next.add(row.id));
+      } else {
+        rows.forEach((row) => next.delete(row.id));
+      }
+
       return next;
     });
   };
@@ -48,13 +97,34 @@ export default function DataExplorer() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-800">Data Explorer</h1>
+        <div>
+          <h1 className="text-lg font-semibold text-slate-800">
+            Data Explorer
+          </h1>
+
+          {batchId && (
+            <p className="mt-1 text-sm text-slate-500">
+              Processing Batch {batchId}
+            </p>
+          )}
+        </div>
+
         <ExportButtons selectedIds={[...selectedIds]} />
       </div>
 
-      <FilterBar value={query} onChange={handleFilterChange} disabled={loading} />
+      <FilterBar
+        value={query}
+        onChange={handleFilterChange}
+        disabled={loading}
+      />
 
-      {error && <ErrorMessage error={error} onRetry={refetch} />}
+      {error && (
+        <ErrorMessage
+          error={error}
+          onRetry={refetch}
+        />
+      )}
+
       {loading ? (
         <Loading label="Loading customer records..." />
       ) : (
@@ -65,6 +135,7 @@ export default function DataExplorer() {
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
           />
+
           <Pagination
             page={data?.page}
             totalPages={data?.total_pages}

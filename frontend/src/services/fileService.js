@@ -1,26 +1,74 @@
-// src/services/fileService.js
 import { api } from "./api";
 
 export const fileService = {
   upload: (file, onProgress) => {
     const formData = new FormData();
     formData.append("file", file);
-    return api
-      .post("/api/files/upload/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (evt) => {
-          if (onProgress && evt.total) {
-            onProgress(Math.round((evt.loaded / evt.total) * 100));
-          }
-        },
-      })
-      .then((r) => r.data);
+
+    return api.post("/api/files/upload/", formData, {
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) return;
+
+        const percent = Math.round(
+          (event.loaded * 100) / event.total
+        );
+
+        onProgress(percent);
+      },
+    }).then((response) => response.data);
   },
 
-  list: ({ page = 1, pageSize = 20 } = {}) =>
-    api.get("/api/files/", { params: { page, page_size: pageSize } }).then((r) => r.data),
+  uploadBatch: (files, onProgress) => {
+    const formData = new FormData();
 
-  get: (id) => api.get(`/api/files/${id}/`).then((r) => r.data),
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
 
-  remove: (id) => api.delete(`/api/files/${id}/`).then((r) => r.data),
+    return api.post("/api/files/upload-batch/", formData, {
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) return;
+
+        const percent = Math.round(
+          (event.loaded * 100) / event.total
+        );
+
+        onProgress(percent);
+      },
+    }).then((response) => response.data);
+  },
+
+  discoverAttributes: (fileIds) =>
+    api
+      .post("/api/files/discover-attributes/", {
+        file_ids: fileIds,
+      })
+      .then((response) => response.data),
+
+  list: ({
+    page = 1,
+    pageSize = 20,
+    format,
+    mine,
+  } = {}) =>
+    api
+      .get("/api/files/", {
+        params: {
+          page,
+          page_size: pageSize,
+          ...(format ? { format } : {}),
+          ...(mine !== undefined ? { mine } : {}),
+        },
+      })
+      .then((response) => response.data),
+
+  get: (fileId) =>
+    api
+      .get(`/api/files/${fileId}/`)
+      .then((response) => response.data),
+
+  remove: (fileId) =>
+    api
+      .delete(`/api/files/${fileId}/`)
+      .then((response) => response.data),
 };

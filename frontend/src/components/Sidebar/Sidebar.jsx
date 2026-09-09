@@ -5,6 +5,7 @@ const LINKS = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/upload", label: "Upload" },
   { to: "/processing", label: "Processing" },
+  { to: "/processing-history", label: "Processing History" },
   { to: "/data", label: "Data Explorer" },
   { to: "/chatbot", label: "Chatbot" },
 ];
@@ -19,7 +20,9 @@ export default function Sidebar() {
               to={link.to}
               className={({ isActive }) =>
                 `block rounded-md px-3 py-2 text-sm font-medium ${
-                  isActive ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"
+                  isActive
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-slate-600 hover:bg-slate-100"
                 }`
               }
             >

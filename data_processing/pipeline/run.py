@@ -39,6 +39,8 @@ def process_file(
     job_id:         int,
     upload_file_id: int,
     file_path:      str | Path,
+    requested_attributes: list[str] | None = None,
+
 ) -> dict[str, Any]:
     """
     Run the ETL pipeline for one file.
@@ -60,7 +62,8 @@ def process_file(
     session = get_session()
     try:
         pipeline = Pipeline(session)
-        result   = pipeline.run(job_id, upload_file_id, file_path)
+        result   = pipeline.run(job_id, upload_file_id, file_path,    requested_attributes=requested_attributes,
+)
         return _result_to_dict(result)
     finally:
         session.close()
