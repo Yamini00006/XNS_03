@@ -1,6 +1,17 @@
-// src/services/chatbotService.js
 import { api } from "./api";
 
 export const chatbotService = {
-  query: (query) => api.post("/api/chatbot/query/", { query }).then((r) => r.data),
+  query: (query, batchId = null) => {
+    const payload = {
+      query,
+    };
+
+    if (batchId !== null && batchId !== undefined) {
+      payload.batch_id = Number(batchId);
+    }
+
+    return api
+      .post("/api/chatbot/query/", payload)
+      .then((response) => response.data);
+  },
 };

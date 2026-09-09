@@ -4,5 +4,9 @@ from .views import ChatbotQueryView
 
 
 urlpatterns = [
-    path("query/", ChatbotQueryView.as_view(), name="chatbot-query"),
+    path(
+        "query/",
+        ChatbotQueryView.as_view(),
+        name="chatbot-query",
+    ),
 ]
