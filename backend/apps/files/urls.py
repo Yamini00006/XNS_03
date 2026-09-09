@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    FileAttributeDiscoveryView,
     FileBatchUploadView,
     FileDetailView,
     FileListView,
@@ -17,6 +18,11 @@ urlpatterns = [
         "upload-batch/",
         FileBatchUploadView.as_view(),
         name="files-upload-batch",
+    ),
+    path(
+        "discover-attributes/",
+        FileAttributeDiscoveryView.as_view(),
+        name="files-discover-attributes",
     ),
     path(
         "",

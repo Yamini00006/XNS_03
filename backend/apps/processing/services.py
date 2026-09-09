@@ -44,6 +44,8 @@ STATUS_DISPLAY = {
     "failed": "Failed",
 }
 
+MAX_BATCH_FILES = 20
+
 
 def display_status(raw_status) -> str:
     value = (
@@ -186,6 +188,7 @@ def run_job(
 def create_batch_jobs(
     file_ids: list[int],
     user_id: int,
+    requested_attributes: list[str] | None = None,
 ) -> dict:
     """
     Create one isolated ProcessingBatch and one ProcessingJob per
@@ -274,6 +277,7 @@ def create_batch_jobs(
                     "job_id": job.id,
                     "file_id": file.id,
                     "file_path": file.stored_path,
+                    "requested_attributes": requested_attributes,
                 }
             )
 
@@ -346,6 +350,9 @@ def run_batch(
                     job_id=item["job_id"],
                     upload_file_id=item["file_id"],
                     file_path=item["file_path"],
+                      requested_attributes=item.get(
+        "requested_attributes"
+    ),
                 )
 
                 with session_scope() as session:
