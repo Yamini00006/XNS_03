@@ -9,7 +9,6 @@ import { processingService } from "../../services/processingService";
 
 import { formatBytes } from "../../utils/formatters";
 
-
 export default function Upload() {
   const navigate = useNavigate();
 
@@ -28,6 +27,14 @@ export default function Upload() {
   const [starting, setStarting] =
     useState(false);
 
+  const [attributes, setAttributes] =
+    useState([]);
+
+  const [selectedAttributes, setSelectedAttributes] =
+    useState([]);
+
+  const [discovering, setDiscovering] =
+    useState(false);
 
   const handleUpload = async (files) => {
     if (uploading) {
@@ -37,6 +44,8 @@ export default function Upload() {
     setError(null);
     setUploading(true);
     setProgress(0);
+    setAttributes([]);
+    setSelectedAttributes([]);
 
     try {
       const result =
@@ -45,26 +54,97 @@ export default function Upload() {
           setProgress
         );
 
-      setUploadedFiles(
-        result.files || []
-      );
+      const uploaded =
+        result.files || [];
 
+      setUploadedFiles(uploaded);
+
+      if (uploaded.length > 0) {
+        setDiscovering(true);
+
+        const fileIds =
+          uploaded.map(
+            (file) => file.id
+          );
+
+        const discovered =
+          await fileService.discoverAttributes(
+            fileIds
+          );
+
+        const discoveredAttributes =
+          discovered.attributes || [];
+
+        setAttributes(
+          discoveredAttributes
+        );
+
+        // Select all by default so the existing
+        // processing behaviour is preserved.
+        setSelectedAttributes(
+          discoveredAttributes.map(
+            (attribute) => attribute.name
+          )
+        );
+      }
     } catch (err) {
+      console.error(err);
       setError(err);
-
     } finally {
+      setDiscovering(false);
       setUploading(false);
     }
   };
 
+  const toggleAttribute = (attributeName) => {
+    setSelectedAttributes(
+      (current) => {
+        if (
+          current.includes(attributeName)
+        ) {
+          return current.filter(
+            (name) =>
+              name !== attributeName
+          );
+        }
+
+        return [
+          ...current,
+          attributeName,
+        ];
+      }
+    );
+  };
+
+  const selectAllAttributes = () => {
+    setSelectedAttributes(
+      attributes.map(
+        (attribute) =>
+          attribute.name
+      )
+    );
+  };
+
+  const clearAllAttributes = () => {
+    setSelectedAttributes([]);
+  };
 
   const handleStartProcessing =
     async () => {
-
       if (
         starting ||
         uploadedFiles.length === 0
       ) {
+        return;
+      }
+
+      if (
+        attributes.length > 0 &&
+        selectedAttributes.length === 0
+      ) {
+        setError(
+          "Please select at least one attribute."
+        );
         return;
       }
 
@@ -79,7 +159,8 @@ export default function Upload() {
 
         const result =
           await processingService.startBatch(
-            fileIds
+            fileIds,
+            selectedAttributes
           );
 
         const jobIds =
@@ -87,24 +168,18 @@ export default function Upload() {
             (job) => job.id
           );
 
-        /*
-         * Pass the job IDs through the URL.
-         * Processing page will poll the whole batch.
-         */
         navigate(
           `/processing/batch?job_ids=${jobIds.join(
             ","
           )}`
         );
-
       } catch (err) {
+        console.error(err);
         setError(err);
-
       } finally {
         setStarting(false);
       }
     };
-
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -124,7 +199,7 @@ export default function Upload() {
       )}
 
       {uploadedFiles.length > 0 && (
-        <div className="card space-y-4">
+        <div className="card space-y-5">
 
           <div>
             <p className="text-sm font-semibold text-green-700">
@@ -139,7 +214,6 @@ export default function Upload() {
           </div>
 
           <div className="space-y-2">
-
             {uploadedFiles.map(
               (file) => (
                 <div
@@ -147,7 +221,6 @@ export default function Upload() {
                   className="rounded-md border border-slate-200 p-3"
                 >
                   <div className="flex justify-between">
-
                     <span className="text-sm font-medium">
                       {file.original_name}
                     </span>
@@ -157,7 +230,6 @@ export default function Upload() {
                         file.file_size_bytes
                       )}
                     </span>
-
                   </div>
 
                   <p className="mt-1 text-xs uppercase text-slate-400">
@@ -166,15 +238,103 @@ export default function Upload() {
                 </div>
               )
             )}
-
           </div>
+
+          {discovering && (
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+              Discovering attributes from
+              uploaded files...
+            </div>
+          )}
+
+          {!discovering &&
+            attributes.length > 0 && (
+              <div className="space-y-4">
+
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-800">
+                    Select attributes to
+                    extract
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    These attributes were
+                    discovered from your
+                    uploaded files.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={
+                      selectAllAttributes
+                    }
+                    className="rounded border px-3 py-1 text-xs"
+                  >
+                    Select All
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      clearAllAttributes
+                    }
+                    className="rounded border px-3 py-1 text-xs"
+                  >
+                    Clear All
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {attributes.map(
+                    (attribute) => (
+                      <label
+                        key={attribute.name}
+                        className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 p-3 hover:bg-slate-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedAttributes.includes(
+                            attribute.name
+                          )}
+                          onChange={() =>
+                            toggleAttribute(
+                              attribute.name
+                            )
+                          }
+                        />
+
+                        <span className="text-sm text-slate-700">
+                          {attribute.label}
+                        </span>
+                      </label>
+                    )
+                  )}
+                </div>
+
+                <p className="text-xs text-slate-500">
+                  {selectedAttributes.length} of{" "}
+                  {attributes.length} attributes
+                  selected.
+                </p>
+
+              </div>
+            )}
 
           <button
             className="btn-primary"
             onClick={
               handleStartProcessing
             }
-            disabled={starting}
+            disabled={
+              starting ||
+              discovering ||
+              (
+                attributes.length > 0 &&
+                selectedAttributes.length === 0
+              )
+            }
           >
             {starting
               ? "Starting Processing..."

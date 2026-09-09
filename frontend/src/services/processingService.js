@@ -6,12 +6,13 @@ export const processingService = {
       .post(`/api/processing/${fileId}/start/`)
       .then((r) => r.data),
 
-  startBatch: (fileIds) =>
+  startBatch: (fileIds, requestedAttributes = []) =>
     api
       .post(
         "/api/processing/batch/start/",
         {
           file_ids: fileIds,
+          requested_attributes: requestedAttributes,
         }
       )
       .then((r) => r.data),
